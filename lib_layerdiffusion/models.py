@@ -281,19 +281,15 @@ class TransparentVAEDecoder:
         alpha = y[..., :1]
         fg = y[..., 1:]
 
-        B, H, W, C = fg.shape
-        cb = checkerboard(shape=(H // 64, W // 64))
-        cb = cv2.resize(cb, (W, H), interpolation=cv2.INTER_NEAREST)
-        cb = (0.5 + (cb - 0.5) * 0.1)[None, ..., None]
-        cb = torch.from_numpy(cb).to(fg)
+        # Combine the foreground (fg) and alpha channels to create an RGBA image
+        vis_tensor = torch.cat([fg, alpha], dim=3)[0]
+        vis_numpy = (vis_tensor * 255.0).detach().cpu().float().numpy().clip(0, 255).astype(np.uint8)
+        
+        # Create the transparent PIL image. It will be in RGBA mode.
+        vis = Image.fromarray(vis_numpy)
 
-        vis = (fg * alpha + cb * (1 - alpha))[0]
-        vis = (vis * 255.0).detach().cpu().float().numpy().clip(0, 255).astype(np.uint8)
-        vis = Image.fromarray(vis)
-
-        png = torch.cat([fg, alpha], dim=3)[0]
-        png = (png * 255.0).detach().cpu().float().numpy().clip(0, 255).astype(np.uint8)
-        png = Image.fromarray(png)
+        # Set the 'png' variable to be a copy of 'vis' to match the return signature
+        png = vis.copy()
 
         return png, vis
 
